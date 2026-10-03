@@ -24,7 +24,7 @@ Open http://localhost:8501. For screen text recognition, install the separate [T
 - Activity descriptions are rules based on visible text, not semantic understanding of arbitrary user actions. No external AI service, audio transcription, or Citrix event logs are used.
 - Timestamps preserve milliseconds and identify when the final OCR reading was first observed, not the exact keypress time. OCR uncertainty may delay recognition beyond the sampling interval. Video seeking depends on decoder behavior. Idle ends at the last confirmed unchanged sample. Unsampled trailing time is not classified as idle.
 - Review command candidates against the recording. OCR assumes English by default.
-- Upload limit: 1 GB; uploads and results consume memory. OCR of long recordings can be slow. This prototype runs analysis synchronously and has no accounts, durable job queue, or report database.
+- Upload limit: 10 GB (10,240 MB). Streamlit holds uploaded files in memory, so very large files require substantial available RAM and temporary disk space; raising the limit does not guarantee that every 10 GB file can be processed. OCR of long recordings can be slow. This prototype runs analysis synchronously and has no accounts, durable job queue, or report database. Restart the app after changing the upload limit.
 - Binds to localhost. Do not expose the prototype as a shared service without adding authentication, upload controls, isolated workers, and an appropriate retention policy. Reports can contain sensitive screen text.
 - Temporary video files are removed after analysis, including errors. Uploaded bytes and reports remain in Streamlit session memory; disconnect or restart to clear the session. No disk report history is retained automatically.
 
