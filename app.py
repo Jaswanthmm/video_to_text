@@ -28,7 +28,8 @@ with st.sidebar:
     recording_start = st.text_input("Recording start date/time (optional)", placeholder="03-10-2025 11:27:00", help="DD-MM-YYYY HH:MM:SS, in the recording's timezone. Enter the true recording start, not the idle start.")
     sensitivity = st.number_input("Screen change threshold (%)", min_value=0.01, max_value=10.0, value=0.15, step=0.05,
                                   help="Lower values detect smaller changes. Clocks and cursors may affect idle detection.")
-    use_ocr = st.checkbox("Read screen text and command candidates", value=True)
+    use_ocr = st.checkbox("Read visible text and detect commands", value=True,
+                          help="Uses OCR to read text in the video and identify likely typed commands. Turn off to analyze idle screens without reading text. Screenshots work either way.")
     suggestions = st.checkbox("Ignore dim terminal suggestions", value=True,
                               help="For dark terminals with grey autocomplete suggestions. Disable if actual typed text is dim.")
     detected_tesseract = os.environ.get("TESSERACT_CMD") or shutil.which("tesseract")
@@ -38,7 +39,6 @@ with st.sidebar:
     tesseract = st.text_input("Tesseract executable (optional)", value=detected_tesseract)
     st.caption("Local processing. Uploaded videos are temporarily saved during analysis and removed afterward. Results remain in this browser session.")
 
-st.info("Idle means visually unchanged, which may include reading or waiting. Commands are visible-text candidates, not confirmed keystrokes or execution. This version uses OCR and rules, not full semantic video understanding.")
 upload = st.file_uploader("Upload a Citrix session recording", type=["mp4"])
 if upload is None:
     st.write("Upload an MP4 to create a timestamped review with downloadable reports.")
