@@ -12,6 +12,7 @@ import pytesseract
 import streamlit as st
 
 from analyzer import Settings, analyze, timestamp, activity_log, calendar_timestamp
+from screenshots import collect_screenshots
 
 st.set_page_config(page_title="Session Lens", page_icon="▶", layout="wide")
 st.title("Session Lens")
@@ -46,7 +47,31 @@ if upload is None:
 fingerprint = hashlib.sha256(upload.getbuffer()).hexdigest()
 if st.session_state.get("video_id") != fingerprint:
     st.session_state.pop("result", None)
+    st.session_state.pop("screenshots", None)
     st.session_state.video_id = fingerprint
+
+st.caption('Screenshots: start, midpoint and last frame for every video, plus every 10 minutes for longer recordings. Overlapping interval captures are included only once. No video splitting or OCR is required.')
+if st.button('Collect timestamped screenshots'):
+    st.session_state.pop('screenshots', None)
+    try:
+        start_datetime = datetime.strptime(recording_start.strip(), '%d-%m-%Y %H:%M:%S') if recording_start.strip() else None
+        with st.spinner('Collecting screenshots…'):
+            with tempfile.TemporaryDirectory(prefix='session-screenshots-') as folder:
+                path = Path(folder) / 'recording.mp4'
+                path.write_bytes(upload.getbuffer())
+                st.session_state.screenshots = collect_screenshots(path, start_datetime)
+    except Exception as exc:
+        st.error(str(exc))
+
+screenshots = st.session_state.get('screenshots')
+if screenshots:
+    with st.expander(f"Screenshots ({len(screenshots['rows'])})", expanded=True):
+        st.download_button('Download screenshots and timestamps ZIP', screenshots['zip'],
+                           'session-screenshots.zip', 'application/zip')
+        st.dataframe(screenshots['rows'], hide_index=True, use_container_width=True)
+        selected = st.selectbox('Preview screenshot', range(len(screenshots['rows'])),
+                                format_func=lambda i: screenshots['rows'][i]['file'])
+        st.image(screenshots['images'][selected], caption=screenshots['rows'][selected]['file'])
 
 if st.button("Analyze recording", type="primary"):
     st.session_state.pop("result", None)
