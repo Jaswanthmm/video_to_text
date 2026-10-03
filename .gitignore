@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+diagnostics/
+reports/
+.publish-repo/
+*.mp4
+*.avi
+*.mov
+*.mkv
+.env
+.env.*
+.streamlit/secrets.toml
