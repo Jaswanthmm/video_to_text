@@ -13,6 +13,7 @@ import streamlit as st
 
 from analyzer import Settings, analyze, timestamp, activity_log, calendar_timestamp
 from screenshots import collect_screenshots
+from video_io import UPLOAD_EXTENSIONS, upload_suffix, open_video, preview_frame
 
 st.set_page_config(page_title="Session Lens", page_icon="▶", layout="wide")
 st.title("Session Lens")
@@ -39,12 +40,21 @@ with st.sidebar:
     tesseract = st.text_input("Tesseract executable (optional)", value=detected_tesseract)
     st.caption("Local processing. Uploaded videos are temporarily saved during analysis and removed afterward. Results remain in this browser session.")
 
-upload = st.file_uploader("Upload a Citrix session recording", type=["mp4"])
+upload = st.file_uploader("Upload a Citrix session recording", type=list(UPLOAD_EXTENSIONS),
+                          help="MP4 and AVI videos, plus VID files that contain a decodable video stream. Proprietary recordings must first be exported by their recording application.")
 if upload is None:
-    st.write("Upload an MP4 to create a timestamped review with downloadable reports.")
+    st.write("Upload an MP4, AVI, or compatible VID recording to create a timestamped review.")
     st.stop()
 
-fingerprint = hashlib.sha256(upload.getbuffer()).hexdigest()
+try:
+    suffix = upload_suffix(upload.name)
+except ValueError as exc:
+    st.error(str(exc))
+    st.stop()
+if suffix == '.vid':
+    st.caption('VID compatibility depends on the recording format. Native session recordings may require an MP4 export from the original recording application.')
+
+fingerprint = suffix + hashlib.sha256(upload.getbuffer()).hexdigest()
 if st.session_state.get("video_id") != fingerprint:
     st.session_state.pop("result", None)
     st.session_state.pop("screenshots", None)
@@ -57,7 +67,7 @@ if st.button('Collect timestamped screenshots'):
         start_datetime = datetime.strptime(recording_start.strip(), '%d-%m-%Y %H:%M:%S') if recording_start.strip() else None
         with st.spinner('Collecting screenshots…'):
             with tempfile.TemporaryDirectory(prefix='session-screenshots-') as folder:
-                path = Path(folder) / 'recording.mp4'
+                path = Path(folder) / ('recording' + suffix)
                 path.write_bytes(upload.getbuffer())
                 st.session_state.screenshots = collect_screenshots(path, start_datetime)
     except Exception as exc:
@@ -78,15 +88,17 @@ if st.button("Analyze recording", type="primary"):
     try:
         start_datetime = datetime.strptime(recording_start, "%d-%m-%Y %H:%M:%S") if recording_start.strip() else None
         pytesseract.pytesseract.tesseract_cmd = tesseract or "tesseract"
-        if use_ocr:
-            try:
-                pytesseract.get_tesseract_version()
-            except Exception as exc:
-                raise ValueError("Tesseract OCR is unavailable. Install it and enter its executable path, or disable text reading to analyze idle screens.") from exc
         bar = st.progress(0, text="Analyzing recording…")
         with tempfile.TemporaryDirectory(prefix="session-lens-") as folder:
-            path = Path(folder) / "recording.mp4"
+            path = Path(folder) / ('recording' + suffix)
             path.write_bytes(upload.getbuffer())
+            with open_video(path):
+                pass  # Validate the video before checking optional OCR dependencies.
+            if use_ocr:
+                try:
+                    pytesseract.get_tesseract_version()
+                except Exception as exc:
+                    raise ValueError("Tesseract OCR is unavailable. Install it and enter its executable path, or disable text reading to analyze idle screens.") from exc
             result = analyze(path, Settings(sample, sensitivity, use_ocr, suggestions), bar.progress)
         result["recording_start"] = recording_start or None
         result["activity_log"] = activity_log(result["commands"],
@@ -113,7 +125,19 @@ if result:
     c.metric("Command candidates", len(result["commands"]))
     st.caption(f"Report settings: {result['settings']}")
     seek = st.number_input("Review from second", min_value=0, max_value=max(0, int(result["duration_seconds"])), value=0)
-    st.video(upload, start_time=seek)
+    if suffix == '.mp4':
+        st.video(upload, start_time=seek)
+    else:
+        st.caption('AVI and VID recordings use a frame preview because browser video playback may not support their format. Analysis and screenshot downloads remain available.')
+        if st.button('Show frame at selected time'):
+            try:
+                with tempfile.TemporaryDirectory(prefix='session-preview-') as folder:
+                    path = Path(folder) / ('recording' + suffix)
+                    path.write_bytes(upload.getbuffer())
+                    png, actual_seconds = preview_frame(path, float(seek))
+                st.image(png, caption='Video time: ' + timestamp(actual_seconds))
+            except Exception as exc:
+                st.error(str(exc))
     log, timeline, commands, observations, exports = st.tabs(["User activity log", "Idle intervals", "Commands", "Screen observations", "Download reports"])
     with log:
         if 'activity_log' not in result:

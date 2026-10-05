@@ -1,6 +1,6 @@
 # Session Lens
 
-A local Python web app for reviewing exported Citrix MP4 recordings. Upload a video, detect visually idle intervals, read visible text, review likely terminal commands, and export JSON/CSV reports.
+A local Python web app for reviewing MP4, AVI, and compatible VID recordings. Upload a video, detect visually idle intervals, read visible text, review likely terminal commands, and export JSON/CSV reports.
 
 ## Run on Windows
 
@@ -15,6 +15,9 @@ py -m venv .venv
 Open http://localhost:8501. For screen text recognition, install the separate [Tesseract OCR engine](https://tesseract-ocr.github.io/tessdoc/Installation.html). The app finds installations on PATH or at `C:\Program Files\Tesseract-OCR\tesseract.exe`; you can enter another path in the sidebar. You can disable OCR to use idle detection without Tesseract.
 
 ## Behavior and limitations
+
+- MP4 and AVI support depends on the installed OpenCV decoder and the video's codec. VID is an ambiguous extension: standard video streams using this extension can work, but native/proprietary session-recording formats are not decoded or converted by this app. The app preserves the original extension and checks metadata and the first frame before analysis. Unsupported files show export guidance rather than an empty report. Export native recordings using their original software; changing the extension does not convert them. For supported Citrix versions, see [Citrix recording export to MP4](https://docs.citrix.com/en-us/session-recording/service/manage-recordings/session-recording-file-export.html).
+- AVI and VID use an on-demand frame preview at the selected time instead of the browser video player. Both retain command analysis, idle detection, and timestamped screenshot ZIP downloads. MP4 playback still depends on the browser supporting its codec.
 
 - Use **Collect timestamped screenshots** to download PNG images and a `timestamps.csv` manifest together in a ZIP, without running command analysis. Every video produces start, midpoint, and last-frame screenshots, regardless of duration or file size. Longer videos also include captures at 10:00, 20:00, etc., while the timestamp is within the video. An interval that coincides with a required frame is captured only once, keeping the start/mid/end label. The images have an added timestamp footer; original screen pixels remain intact. Enter the recording start time for calendar timestamps as well. These are point-in-time screenshots, not three exported video clips. Single-frame videos produce three labeled copies. Screenshots remain in session memory until the upload changes or the session ends.
 

@@ -6,6 +6,7 @@ reports/
 .publish-repo/
 *.mp4
 *.avi
+*.vid
 *.mov
 *.mkv
 .env

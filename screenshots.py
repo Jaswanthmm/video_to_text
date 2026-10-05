@@ -7,6 +7,7 @@ import zipfile
 import cv2
 
 from analyzer import timestamp, calendar_timestamp
+from video_io import open_video
 
 
 def capture_targets(frame_count, fps):
@@ -24,12 +25,7 @@ def capture_targets(frame_count, fps):
 
 
 def collect_screenshots(path, recording_start=None):
-    cap = cv2.VideoCapture(str(path))
-    try:
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-        if not cap.isOpened() or not math.isfinite(count) or count < 1:
-            raise ValueError('Cannot read this recording for screenshots.')
+    with open_video(path) as (cap, fps, count):
         rows, images = [], []
         for index, (label, frame_index) in enumerate(capture_targets(int(count), fps)):
             if not cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index):
@@ -65,5 +61,3 @@ def collect_screenshots(path, recording_start=None):
             writer.writerows(rows)
             archive.writestr('timestamps.csv', manifest.getvalue())
         return {'rows': rows, 'images': images, 'zip': buffer.getvalue()}
-    finally:
-        cap.release()

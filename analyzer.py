@@ -4,6 +4,7 @@ from command_tracker import CommandTracker
 from datetime import timedelta
 from dataclasses import dataclass, asdict
 from screen_ocr import ScreenOCR
+from video_io import open_video
 
 import cv2
 import numpy as np
@@ -95,12 +96,7 @@ def idle_intervals(samples, duration):
 def analyze(path, settings, progress=lambda value: None):
     if settings.sample_seconds <= 0:
         raise ValueError("Sample interval must be positive.")
-    cap = cv2.VideoCapture(str(path))
-    try:
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-        if not cap.isOpened() or fps <= 0 or count <= 0:
-            raise ValueError("Cannot read this recording. Upload a valid, playable MP4.")
+    with open_video(path) as (cap, fps, count):
         duration = count / fps
         samples, observations = [], []
         previous = None
@@ -149,5 +145,3 @@ def analyze(path, settings, progress=lambda value: None):
         return {"duration_seconds": duration, "settings": asdict(settings), "timeline": timeline,
                 "observations": observations, "commands": tracker.events,
                 "limitations": "Sampled visual estimates; OCR may miss or misread commands. No proof of execution or human inactivity."}
-    finally:
-        cap.release()
